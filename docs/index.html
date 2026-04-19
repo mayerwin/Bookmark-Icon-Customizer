@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmark Icon Customizer — a Chrome extension for beautiful bookmarks</title>
+  <meta name="description" content="Customize bookmark favicons with emojis, 14,000+ Material Design Icons, or your own images. Works with bookmarklets and webhooks. Local-only, no tracking.">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="site">
+      <a class="brand" href="./">
+        <img src="assets/logo.png" alt="">
+        <span class="brand-name">Bookmark Icon Customizer</span>
+      </a>
+      <nav class="site-nav">
+        <a href="#features">Features</a>
+        <a href="#gallery">Gallery</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="https://github.com/mayerwin/Bookmark-Icon-Customizer">GitHub</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <h1>Give your bookmarks <span class="accent">a face</span>.</h1>
+      <p class="lead">
+        Replace any bookmark's favicon with an emoji, a Material Design Icon
+        (14,000+ glyphs), or your own image. Works with plain URLs,
+        <code>javascript:</code> bookmarklets, and webhooks.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/mayerwin/Bookmark-Icon-Customizer/releases/latest">Download latest release</a>
+        <a class="btn btn-ghost" href="https://github.com/mayerwin/Bookmark-Icon-Customizer">View on GitHub</a>
+      </div>
+
+      <div class="hero-shot">
+        <img src="assets/screenshot-1-hero-1280x800.png" alt="Bookmark Icon Customizer picker with a customized bookmark bar in the background">
+      </div>
+    </section>
+
+    <section id="features">
+      <h2>Everything you need, nothing you don't.</h2>
+      <p class="section-sub">Local-only storage, minimal permissions, zero tracking. Your bookmarks stay on your machine.</p>
+
+      <div class="features">
+        <div class="feature">
+          <h3>Emoji picker</h3>
+          <p>High-DPI 128×128 emoji rendering for icons that stay crisp on every display.</p>
+        </div>
+        <div class="feature">
+          <h3>14,000+ MDI glyphs</h3>
+          <p>The full Material Design Icons library, searchable in-place.</p>
+        </div>
+        <div class="feature">
+          <h3>Custom uploads</h3>
+          <p>Drop a PNG, JPG, or ICO and you're done — the extension handles sizing and caching.</p>
+        </div>
+        <div class="feature">
+          <h3>Bookmarklets, with icons</h3>
+          <p>Turn <code>javascript:</code> bookmarks into proper icon-carrying launchers. Original source is always recoverable.</p>
+        </div>
+        <div class="feature">
+          <h3>Webhook bookmarks</h3>
+          <p>Tick a box to make a URL fire silently when clicked — like a dedicated button in your bar. Perfect for Home Assistant and friends.</p>
+        </div>
+        <div class="feature">
+          <h3>Self-healing</h3>
+          <p>If you ever reinstall the extension, bookmarklets revert to their original <code>javascript:</code> form automatically.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>How it works</h2>
+      <p class="section-sub">Chrome's favicon cache is keyed by URL and has no public write API. The extension handles the plumbing so you don't have to.</p>
+      <div class="how-it-works">
+        <ol>
+          <li><strong>Plain URLs</strong> — the target is opened once in a small focused-off popup window so Chrome caches your chosen favicon for that URL.</li>
+          <li><strong>Bookmarklets</strong> — rewritten to an extension launcher page that carries the favicon; the original JS is preserved verbatim in the URL and self-heals on reinstall.</li>
+          <li><strong>Webhooks</strong> — rewritten to a <code>data:text/html</code> URL with the favicon inlined. Click the bookmark and it fires the request silently, without opening a tab.</li>
+          <li><strong>Reversible everywhere</strong> — untick the customization and the bookmark is restored to its original form.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="gallery">
+      <h2>A closer look</h2>
+      <p class="section-sub">The picker is built to feel at home next to Chrome's own UI.</p>
+      <div class="gallery">
+        <figure>
+          <img src="assets/screenshot-2-emoji-picker-1280x800.png" alt="Emoji picker in the Bookmark Icon Customizer popup">
+          <figcaption>Emoji picker with live preview.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/screenshot-3-mdi-picker-1280x800.png" alt="Material Design Icons picker with search">
+          <figcaption>Material Design Icons — 14,000+ glyphs, searchable.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/small-promo-tile-440x280.png" alt="Small promotional tile">
+          <figcaption>Small tile (Chrome Web Store).</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/marquee-promo-tile-1400x560.png" alt="Marquee promotional tile">
+          <figcaption>Marquee tile (Chrome Web Store).</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <footer class="site">
+      <span>© 2026 Bookmark Icon Customizer. MIT licensed.</span>
+      <span>
+        <a href="privacy.html">Privacy</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/mayerwin/Bookmark-Icon-Customizer/issues">Issues</a>
+      </span>
+    </footer>
+  </div>
+</body>
+</html>

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Bookmark Icon Customizer",
   "version": "1.0.0",
-  "description": "Easily customize your bookmark icons with emojis, uploads, or custom designs.",
+  "description": "Customize bookmark favicons with emojis, 14,000+ Material Design Icons, or your own images. Works with bookmarklets & webhooks.",
   "permissions": [
     "bookmarks",
     "storage",

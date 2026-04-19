@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy — Bookmark Icon Customizer</title>
+  <meta name="description" content="Privacy policy for the Bookmark Icon Customizer Chrome extension. Local-only storage, no tracking, no data collection.">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="site">
+      <a class="brand" href="./">
+        <img src="assets/logo.png" alt="">
+        <span class="brand-name">Bookmark Icon Customizer</span>
+      </a>
+      <nav class="site-nav">
+        <a href="./">Home</a>
+        <a href="https://github.com/mayerwin/Bookmark-Icon-Customizer">GitHub</a>
+      </nav>
+    </header>
+  </div>
+
+  <article class="doc">
+    <h1>Privacy Policy</h1>
+    <p class="meta">Last updated: 2026-04-18</p>
+
+    <p>Bookmark Icon Customizer is designed with privacy as a first principle. This policy explains exactly what the extension does — and does not — do with your data.</p>
+
+    <h2>What we store</h2>
+    <p>The extension stores your custom icon mappings locally in your browser via <code>chrome.storage.local</code>. Each mapping pairs a bookmark URL with an icon (an emoji, an MDI glyph, or an image you uploaded).</p>
+    <p>This data never leaves your browser. It is not synced to any server we operate.</p>
+
+    <h2>What we do not collect</h2>
+    <ul>
+      <li>We do <strong>not</strong> collect, transmit, or sell any personal data.</li>
+      <li>We do <strong>not</strong> track your browsing activity.</li>
+      <li>We do <strong>not</strong> use analytics, telemetry, or third-party tracking scripts.</li>
+      <li>We do <strong>not</strong> have servers that receive your bookmarks or icons.</li>
+    </ul>
+
+    <h2>Network requests</h2>
+    <p>The extension only makes network requests in two explicit cases, both driven by URLs you configure:</p>
+    <ol>
+      <li><strong>Bookmarks you click.</strong> When you activate a customized bookmark, your browser navigates to the original URL (for normal bookmarks) or executes your bookmarklet code (for <code>javascript:</code> bookmarks) — exactly as it would without the extension.</li>
+      <li><strong>Webhooks you tick.</strong> If you check the "This is a webhook" option on a bookmark, the extension fires a <code>fetch</code> to that URL when the bookmark is clicked. The request is sent only to the webhook URL you configured, and only when you click the bookmark.</li>
+    </ol>
+    <p>No other network requests are made.</p>
+
+    <h2>Permissions</h2>
+    <ul>
+      <li><code>bookmarks</code> — read and update your bookmarks so we can attach custom icons.</li>
+      <li><code>storage</code> — persist your icon mappings locally.</li>
+      <li><code>favicon</code> — read the default favicon of a bookmark so we can show the "restore original" preview.</li>
+      <li><code>scripting</code> + optional <code>&lt;all_urls&gt;</code> host access — only requested if you opt into priming (opening a bookmark's target once so Chrome caches the favicon).</li>
+    </ul>
+
+    <h2>Uninstalling</h2>
+    <p>Removing the extension deletes all locally stored mappings. Your bookmarks are restored to ordinary URLs (customized <code>javascript:</code> bookmarks self-heal back to their original source on next extension load).</p>
+
+    <h2>Contact</h2>
+    <p>Issues and questions: <a href="https://github.com/mayerwin/Bookmark-Icon-Customizer/issues">github.com/mayerwin/Bookmark-Icon-Customizer/issues</a></p>
+  </article>
+
+  <div class="container">
+    <footer class="site">
+      <span>© 2026 Bookmark Icon Customizer. MIT licensed.</span>
+      <span>
+        <a href="./">Home</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/mayerwin/Bookmark-Icon-Customizer">GitHub</a>
+      </span>
+    </footer>
+  </div>
+</body>
+</html>

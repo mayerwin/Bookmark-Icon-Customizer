@@ -4,3 +4,4 @@ node_modules/
 resize_icons.js
 package-lock.json
 .claude/settings.local.json
+dist/

@@ -1,45 +1,44 @@
-# Bookmark Icon Customizer 🔖✨
+# Bookmark Icon Customizer
 
-A premium Chrome extension and **favicon changer** to easily customize your bookmark icons. No more generic icons—personalize your bookmarks bar with emojis, custom images, and high-quality designs. This **bookmark changer** is designed for power users who want a beautiful and organized browsing experience.
+A Chrome extension that lets you replace any bookmark's favicon with an emoji, a Material Design Icon (14,000+ glyphs), or your own image. Works with plain URLs, `javascript:` bookmarklets, and webhooks.
 
-![Dashboard Preview](assets/store_banner.png)
+Website: <https://mayerwin.github.io/Bookmark-Icon-Customizer/>
+
+![Hero](docs/assets/screenshot-1-hero-1280x800.png)
 
 ## Features
 
-- 📂 **Folder Navigation**: Browse your bookmarks by folder or search across your entire collection.
-- 🎨 **Emoji Picker**: High-DPI (128x128) rendering of standard emojis for crisp, vibrant icons.
-- 📤 **Custom Upload**: Support for PNG, JPG, and ICO file uploads.
-- 🔍 **Real-time Search**: Fuzzy matching to find any bookmark in seconds.
-- ⚡ **Seamless Redirects**: Uses a high-performance redirect method that preserves browser history.
-- 🛡️ **Privacy First**: Minimal permissions required (`bookmarks`, `storage`, `favicon`). No background data collection.
-- 🌑 **Premium Aesthetics**: Glassmorphic dark theme with smooth micro-animations.
+- **Emoji picker** — high-DPI (128×128) rendering for crisp, vibrant icons.
+- **Material Design Icons** — 14,000+ searchable glyphs.
+- **Image upload** — PNG, JPG, or ICO files.
+- **Bookmarklets (`javascript:`)** — rewritten to a launcher URL that carries a custom favicon while preserving the original source (recoverable even if the extension is uninstalled).
+- **Webhooks** — tick a box to turn a URL into a silent fire-and-forget fetch. The bookmark behaves like a button: no tab, no navigation, custom icon.
+- **Self-healing** — bookmarklets converted by a prior install automatically revert to `javascript:` form if storage is wiped or the extension ID changes.
+- **Glass dark UI** — Outfit font, coral/crimson accents, smooth micro-animations.
+- **Local-only storage** — icon mappings live in `chrome.storage.local`. No servers, no telemetry. See [PRIVACY.md](PRIVACY.md).
 
-## How it Works
+## How it works
 
-Since Google Chrome does not allow extensions to directly modify the native favicon database of the browser, this extension uses a **Redirect Strategy**:
-1. It creates a small internal extension page for your bookmark.
-2. This page carries the custom icon you selected.
-3. When you click the bookmark, the extension page loads the icon and immediately redirects to the original destination.
-4. Chrome caches the icon from the extension page, displaying it in your bookmarks bar.
+Chrome's favicon cache is keyed by URL and doesn't expose an API to set icons directly. The extension handles this with two strategies:
 
-## Installation (Development Mode)
+- **Plain URLs** — the extension loads the bookmark target once in a small focused-off popup window so Chrome caches the favicon you picked for that URL.
+- **Bookmarklets and webhooks** — the bookmark URL is rewritten. Bookmarklets become `chrome-extension://<id>/launcher.html?js=<encoded>` so the launcher page can carry a favicon; webhooks become a `data:text/html` URL with the favicon inlined (Chrome ignores `<link rel="icon">` on `chrome-extension://` bookmarks, so `data:` is required for webhooks).
 
-1. Clone or download this repository.
-2. Open Chrome and navigate to `chrome://extensions/`.
-3. Enable **Developer mode** (toggle in the top right).
-4. Click **Load unpacked** and select the folder containing this extension.
-5. Click the extension icon in your toolbar to start customizing!
+Both rewrites are fully reversible — untick the customization and the bookmark is restored to its original form.
 
-## Implementation Details
+## Installation (development)
 
-- **Manifest V3**: Built using the latest Chrome extension standards.
-- **Vanilla JS**: No heavy frameworks, ensuring fast load times and minimal resource usage.
-- **Glassmorphism UI**: Modern styling with backdrop-blur and CSS variables for theming.
+1. Clone this repository.
+2. Open `chrome://extensions/` and enable **Developer mode**.
+3. Click **Load unpacked** and select the repository folder.
+4. Pin the extension and click its icon to start customizing.
 
-## Contributing
+## Screenshots
 
-Contributions are welcome! Please feel free to submit a Pull Request or open an issue.
+| Emoji picker | MDI picker |
+|---|---|
+| ![Emoji picker](docs/assets/screenshot-2-emoji-picker-1280x800.png) | ![MDI picker](docs/assets/screenshot-3-mdi-picker-1280x800.png) |
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
