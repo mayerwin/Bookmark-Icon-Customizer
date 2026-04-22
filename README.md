@@ -2,7 +2,7 @@
 
 A Chrome extension that lets you replace any bookmark's favicon with an emoji, a Material Design Icon (14,000+ glyphs), or your own image. Works with plain URLs, `javascript:` bookmarklets, and webhooks.
 
-Website: <https://mayerwin.github.io/Bookmark-Icon-Customizer/>
+**[➕ Add to Chrome — Chrome Web Store](https://chromewebstore.google.com/detail/bookmark-icon-customizer/fhngdjipelbebhdnkpealakcckpjpjpn)** · [Website](https://mayerwin.github.io/Bookmark-Icon-Customizer/)
 
 ![Hero](docs/assets/screenshot-1-hero-1280x800.png)
 
@@ -26,7 +26,11 @@ Chrome's favicon cache is keyed by URL and doesn't expose an API to set icons di
 
 Both rewrites are fully reversible — untick the customization and the bookmark is restored to its original form.
 
-## Installation (development)
+## Installation
+
+**From the Chrome Web Store (recommended):** [Add to Chrome](https://chromewebstore.google.com/detail/bookmark-icon-customizer/fhngdjipelbebhdnkpealakcckpjpjpn).
+
+**From source (development):**
 
 1. Clone this repository.
 2. Open `chrome://extensions/` and enable **Developer mode**.

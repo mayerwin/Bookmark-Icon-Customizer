@@ -281,3 +281,20 @@ footer.site {
   border-radius: 6px;
   font-size: 0.88em;
 }
+
+@media (max-width: 640px) {
+  header.site {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+  }
+  .site-nav {
+    gap: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .brand {
+    font-size: 1.1rem;
+  }
+}
