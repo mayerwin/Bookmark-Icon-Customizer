@@ -14,8 +14,13 @@
  * storage (rather than in the URL) lets the priming URL be byte-identical
  * to the bookmark URL — essential for the favicon cache to line up.
  */
+import { recursivelyDecode } from './lib/launcher.js';
+
 const params = new URLSearchParams(window.location.search);
-const jsSource = params.get('js') || '';
+// recursivelyDecode unwraps any leftover percent-encoding from launcher URLs
+// saved by older builds that double-encoded the js= parameter. Modern builds
+// produce single-encoded URLs, so it's a no-op for those.
+const jsSource = recursivelyDecode(params.get('js') || '');
 const isWebhook = jsSource.startsWith('/*BIC-WEBHOOK*/');
 if (isWebhook) {
   const statusEl = document.getElementById('status');
@@ -84,8 +89,20 @@ async function main() {
   if (priming) return;
   if (jsSource) await runInSandbox(jsSource);
   // Brief pause so any fire-and-forget fetch hands off to the network
-  // stack before the frame goes away.
-  setTimeout(() => window.close(), 150);
+  // stack before we navigate away. Then return the user to where they
+  // came from: clicking the bookmark navigated their existing tab here,
+  // so history.back() restores their previous page. window.close() is
+  // only correct when there's no previous page (e.g., middle-clicked
+  // into a new tab) — Chrome now honors window.close() on extension
+  // pages even for user-initiated navigations, so calling it first
+  // would destroy the user's tab and lose whatever they were doing.
+  setTimeout(() => {
+    if (history.length > 1) {
+      try { history.back(); } catch (e) { /* nothing else to do */ }
+    } else {
+      try { window.close(); } catch (e) { /* nothing else to do */ }
+    }
+  }, 150);
 }
 
 main();
