@@ -566,6 +566,17 @@ async function applyCustomization() {
 // bookmark bar wouldn't find the icon. For bookmarklets, we instead signal
 // "don't run the JS" via chrome.storage.session — launcher.js reads that
 // flag on load.
+//
+// For http(s) URLs we also imperatively inject content_script.js via
+// chrome.scripting.executeScript as soon as the priming tab commits.
+// Background: on the very first apply for a newly-granted origin, the
+// chrome.scripting.registerContentScripts call set up moments earlier
+// (right after chrome.permissions.request resolved) doesn't always reach
+// Chrome's content-script registry before the popup's initial navigation
+// begins — so the registered injection misses the priming load and the
+// bookmark bar icon stays stale until the user re-applies. Direct
+// executeScript closes that race. content_script.js is idempotent, so
+// double-injection (registered + direct) is harmless.
 async function primeFaviconCache(url, { useWindow = false } = {}) {
   await chrome.storage.session.set({ primingUrl: url });
 
@@ -598,12 +609,34 @@ async function primeFaviconCache(url, { useWindow = false } = {}) {
     return;
   }
 
+  const needsInject = /^https?:/.test(url);
+
   try {
     await new Promise(resolve => {
       let settled = false;
+      let injected = !needsInject;
+      const tryInject = () => {
+        if (injected) return;
+        injected = true;
+        chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['content_script.js'],
+          injectImmediately: true
+        }).catch(e => {
+          // Tab may not have fully committed yet, or another transient
+          // condition — allow a later update event to retry.
+          injected = false;
+          console.warn('Priming inject failed, will retry on next update:', e);
+        });
+      };
       const finish = () => { if (!settled) { settled = true; cleanup(); resolve(); } };
       const onUpdated = (updatedTabId, info) => {
-        if (updatedTabId === tabId && info.status === 'complete') {
+        if (updatedTabId !== tabId) return;
+        // Inject as early as we can — first 'loading' or URL-set event.
+        if (!injected && (info.status === 'loading' || info.url)) tryInject();
+        if (info.status === 'complete') {
+          // Last-chance injection if no earlier event fired (rare).
+          tryInject();
           // Windowed priming gets a slightly longer buffer — real pages
           // often fire 'complete' before they've painted their favicon.
           setTimeout(finish, useWindow ? 900 : 400);
