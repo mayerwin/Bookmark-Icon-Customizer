@@ -63,6 +63,13 @@
             </label>
             <span class="webhook-help" tabindex="0" aria-label="What is a webhook?">?<span class="webhook-tooltip">A webhook is a URL that triggers an action when called (e.g. opens a gate, toggles a light, posts a message). Clicking it normally navigates the browser and may try to download the response. Tick this to fire the request silently in the background instead — the bookmark will carry your custom icon and won't open a new tab. Example: Home Assistant URLs like <code>https://yourhome/api/webhook/abc123</code>.</span></span>
           </div>
+          <div class="webhook-row hidden" id="page-inject-row">
+            <label class="webhook-label">
+              <input type="checkbox" id="page-inject-toggle">
+              <span>Run on the current page</span>
+            </label>
+            <span class="webhook-help" tabindex="0" aria-label="When to enable Run on the current page">?<span class="webhook-tooltip">A native <code>javascript:</code> bookmarklet runs inside the page you click it from. To attach a custom favicon, the bookmark has to be rewritten to a real URL — which means clicking it briefly navigates away and back.<br><br><strong>Tick this</strong> if your bookmarklet reads or modifies the page (add a button, save selection, extract data, etc.). The code runs on your previous page after the round-trip. Asks once for permission to access all sites.<br><br><strong>Leave it unticked</strong> for fire-and-forget bookmarklets that don't touch the page (open a URL, ping a server). No permission needed.<br><br><strong>Limitation:</strong> the brief navigation uses Chrome's back-forward cache to restore your page with form values and JS state intact — works on most pages, but pages with a <code>beforeunload</code> handler (rich editors, dashboards) opt out of that cache, so clicking the bookmark there reloads the page and loses unsaved data. This happens on every click, not just the first. Keep DOM-modifying bookmarklets as raw <code>javascript:</code> URLs (no custom icon) if the target page falls into that bucket.</span></span>
+          </div>
           <div class="tabs" role="tablist">
             <button class="tab-btn active" data-tab="emoji" role="tab">Emoji</button>
             <button class="tab-btn" data-tab="mdi" role="tab">MDI</button>

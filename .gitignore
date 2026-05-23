@@ -5,3 +5,9 @@ resize_icons.js
 package-lock.json
 .claude/settings.local.json
 dist/
+PROMOTION_POSTS.md
+
+# Local test scratchpad: e2e harnesses, Puppeteer fixtures, UIA scripts,
+# and the ext-clean staging dir Chrome loads from. Useful day-to-day but
+# regenerated freely, so not tracked.
+scratch/

@@ -28,7 +28,7 @@
 
   <article class="doc">
     <h1>Privacy Policy</h1>
-    <p class="meta">Last updated: 2026-04-18</p>
+    <p class="meta">Last updated: 2026-05-22</p>
 
     <p>Bookmark Icon Customizer is designed with privacy as a first principle. This policy explains exactly what the extension does — and does not — do with your data.</p>
 
@@ -57,8 +57,15 @@
       <li><code>bookmarks</code> — read and update your bookmarks so we can attach custom icons.</li>
       <li><code>storage</code> — persist your icon mappings locally.</li>
       <li><code>favicon</code> — read the default favicon of a bookmark so we can show the "restore original" preview.</li>
-      <li><code>scripting</code> + optional <code>&lt;all_urls&gt;</code> host access — only requested if you opt into priming (opening a bookmark's target once so Chrome caches the favicon).</li>
+      <li><code>scripting</code> — used to swap a bookmark's <code>&lt;link rel="icon"&gt;</code> on the target page so Chrome caches your custom favicon, and (only in page-inject bookmarklet mode) to run a bookmarklet's source in the tab you clicked it from.</li>
+      <li><strong>Optional <code>&lt;all_urls&gt;</code> host access</strong> — not requested at install time. Chrome asks for it at runtime in exactly two cases:
+        <ol>
+          <li>The first time you apply a custom icon to a plain http(s) bookmark, scoped to that bookmark's origin only (e.g. <code>https://example.com/*</code>).</li>
+          <li>The first time you tick <strong>"Run on the current page"</strong> for a <code>javascript:</code> bookmarklet. This mode reproduces a native bookmarklet's behavior — running the JS on whatever page you click it from — which requires the ability to inject into arbitrary sites. The extension only does so when you click a bookmark you've explicitly opted into this mode; nothing runs in the background, nothing is read, no data leaves your browser.</li>
+        </ol>
+      </li>
     </ul>
+    <p>If you'd rather not grant <code>&lt;all_urls&gt;</code>, you can untick "Run on the current page" and use sandbox mode for bookmarklets — no permission needed, with the trade-off that the bookmarklet runs in an isolated iframe and can't read or modify the page you click it from.</p>
 
     <h2>Uninstalling</h2>
     <p>Removing the extension deletes all locally stored mappings. Your bookmarks are restored to ordinary URLs (customized <code>javascript:</code> bookmarks self-heal back to their original source on next extension load).</p>
