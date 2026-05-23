@@ -611,10 +611,13 @@ async function applyCustomization() {
   // Resolve the match pattern for the permission request. '<all_urls>'
   // bypasses per-host normalization — it's the literal match pattern Chrome
   // expects when a feature needs to inject into arbitrary pages (page-inject
-  // launcher mode).
+  // bookmarklet mode). Page-inject also needs the optional `webNavigation`
+  // API permission so background.js can detect the data: URL navigation
+  // — chrome.tabs.onUpdated scrubs data: URLs and can't see them.
   let permissionPattern = null;
   if (hostPermissionUrl === '<all_urls>') permissionPattern = '<all_urls>';
   else if (hostPermissionUrl) permissionPattern = originMatchPattern(hostPermissionUrl);
+  const permissionNames = wantsPageInject ? ['webNavigation'] : null;
 
   const pendingApply = {
     bookmarkId: bm.id,
@@ -625,11 +628,12 @@ async function applyCustomization() {
     title: bm.title || 'Untitled',
     originToMaybeRevoke,
     useWindow: !isLauncher,
-    permissionPattern
+    permissionPattern,
+    permissionNames
   };
 
   try {
-    if (hostPermissionUrl) {
+    if (hostPermissionUrl || permissionNames) {
       Elements.confirmBtn.textContent = 'Requesting access…';
       // Stash the pending apply so background.js's permissions.onAdded
       // listener can finish the work if this popup gets closed by the
@@ -638,20 +642,28 @@ async function applyCustomization() {
       // popup's await never resolves and nothing past the request runs,
       // so the user has to apply twice for the icon to take effect.
       await chrome.storage.session.set({ pendingApply });
-      // Must be inside the click handler's user-gesture window.
-      const granted = await chrome.permissions.request({ origins: [permissionPattern] });
+      // Must be inside the click handler's user-gesture window. Bundle
+      // host + API permissions into a single prompt so the user sees one
+      // dialog (Chrome merges adjacent permission asks into a combined
+      // "wants to: access all sites + read your browsing history" view).
+      const req = {};
+      if (permissionPattern) req.origins = [permissionPattern];
+      if (permissionNames) req.permissions = permissionNames;
+      const granted = await chrome.permissions.request(req);
       if (!granted) {
         await chrome.storage.session.remove('pendingApply');
         if (hostPermissionUrl === '<all_urls>') {
           showToast(
-            'Permission to access all sites is required to run this bookmarklet on the page. ' +
-            'Untick "Run on the current page" to use sandbox mode (no extra permission), or ' +
-            'apply again and accept the prompt.',
+            'Permission to access all sites + read browser navigation is required to run this ' +
+            'bookmarklet on the page. Untick "Run on the current page" to use sandbox mode ' +
+            '(no extra permission), or apply again and accept the prompt.',
             true
           );
-        } else {
+        } else if (hostPermissionUrl) {
           const host = new URL(hostPermissionUrl).hostname;
           showToast(`Permission to modify ${host} is required`, true);
+        } else {
+          showToast('Permission required to run the bookmarklet on the page.', true);
         }
         Elements.confirmBtn.textContent = 'Apply Icon';
         Elements.confirmBtn.disabled = false;

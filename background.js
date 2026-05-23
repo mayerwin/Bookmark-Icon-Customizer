@@ -7,19 +7,26 @@
  *    URLs the user had saved).
  *
  * 2. Page-inject bookmarklets: when the user clicks a page-inject-mode
- *    bookmark, the tab navigates to our data:text/html URL. The data: URL
- *    bounces the user back via history.back(); meanwhile we read the
- *    bookmarklet source out of the data: URL's meta tag and chrome.scripting
- *    .executeScript it into the destination page once the back-navigation
- *    commits. End surface is the same as a native javascript: URL.
+ *    bookmark, the tab navigates to our data:text/html URL, which calls
+ *    history.back() and lands the user back on their previous page. We
+ *    watch the navigation via chrome.webNavigation, recognise our URL by
+ *    its embedded marker, read the bookmarklet source from its meta tag,
+ *    and chrome.scripting.executeScript it into the destination page once
+ *    the back-navigation commits. Same execution surface as a native
+ *    javascript: URL.
  *
- *    We detect the data: URL navigation via chrome.webNavigation rather
- *    than chrome.tabs.onUpdated — Chrome scrubs `tab.url` and `info.url`
- *    to the empty string for data:text/html navigations in the tabs API
- *    (no permission grants visibility), but webNavigation always carries
- *    the full URL. webNavigation has no install-time permission warning,
- *    unlike the `tabs` permission which would show "Read your browsing
- *    history" — important for user trust.
+ *    The webNavigation permission is declared as `optional_permissions`
+ *    so it doesn't trigger Chrome's "Read your browsing history" warning
+ *    on install. The popup requests it (alongside <all_urls> host
+ *    permission) only when the user first ticks "Run on the current page"
+ *    and applies — contextually, when the user is opting into the feature
+ *    that requires it. Users who never use page-inject mode never see the
+ *    prompt at all.
+ *
+ *    Both listeners are registered at top level (MV3 requires it for the
+ *    SW to wake on those events) but they no-op gracefully if the
+ *    permission hasn't been granted yet — chrome.webNavigation.onCommitted
+ *    will simply never fire in that case.
  *
  * 3. Complete the apply flow on behalf of the popup when the host-
  *    permission prompt closes the popup mid-await. The popup stashes a
@@ -36,13 +43,13 @@ import {
 import { completePendingApply } from './lib/apply.js';
 import { BIC_DEBUG, bicLog } from './lib/debug.js';
 
-// Boot banner — only printed under BIC_DEBUG. Set BIC_DEBUG = true in
-// lib/debug.js when debugging click-to-inject failures: the banner shows
-// which version is loaded and whether <all_urls> is actually granted.
 if (BIC_DEBUG) {
-  chrome.permissions.contains({ origins: ['<all_urls>'] }).then(g => {
+  Promise.all([
+    chrome.permissions.contains({ origins: ['<all_urls>'] }),
+    chrome.permissions.contains({ permissions: ['webNavigation'] })
+  ]).then(([urls, wn]) => {
     bicLog('background v' + chrome.runtime.getManifest().version,
-      'started. <all_urls> granted:', g);
+      'started. <all_urls>=' + urls, 'webNavigation=' + wn);
   }).catch(() => {});
 }
 
@@ -66,11 +73,6 @@ function isRestrictedUrl(url) {
          url.startsWith('edge://') || url.startsWith('chrome-search://');
 }
 
-// Pending page-injects keyed by tabId. The data: URL's webNavigation
-// .onCommitted seeds it; the next webNavigation.onCommitted to a real page
-// in the same tab consumes it. Held in-memory only — these entries live for
-// ≤ a few hundred ms in normal use, and the SW stays alive that long
-// because events keep arriving.
 const pendingInjects = new Map(); // tabId → { source, expiresAt }
 
 function injectIntoTab(tabId, source) {
@@ -88,7 +90,6 @@ function injectIntoTab(tabId, source) {
 }
 
 function handleNavigation(details) {
-  // Main frame only. Sub-frame navigations are unrelated to bookmark clicks.
   if (details.frameId !== 0) return;
   const { tabId, url } = details;
 
@@ -125,42 +126,35 @@ function handleNavigation(details) {
   });
 }
 
-chrome.webNavigation.onCommitted.addListener(handleNavigation);
-// Some Chrome BFCache restores fire only onHistoryStateUpdated (not
-// onCommitted) when the previous page is restored from cache. Cover that
-// path too so the bookmarklet still runs when the user's previous page
-// supports BFCache.
-chrome.webNavigation.onHistoryStateUpdated.addListener(handleNavigation);
+// Register the listeners unconditionally. If webNavigation isn't granted
+// yet, they simply never fire — that's fine because the popup only lets
+// the user apply a page-inject bookmarklet after granting the permission.
+if (chrome.webNavigation) {
+  chrome.webNavigation.onCommitted.addListener(handleNavigation);
+  chrome.webNavigation.onHistoryStateUpdated.addListener(handleNavigation);
+}
 
-// Legacy chrome-extension://launcher.html bookmarks built by older versions
-// still ship the source via runtime.sendMessage on click — keep this path
-// for backward compat until those bookmarks are migrated (re-applying the
-// icon converts them to the data: URL form above).
-chrome.runtime.onMessage.addListener((msg, sender) => {
-  if (!msg || msg.type !== 'bic-run-on-prev-page') return;
-  if (typeof msg.tabId !== 'number' || typeof msg.code !== 'string') return;
-  pendingInjects.set(msg.tabId, { source: msg.code, expiresAt: Date.now() + 8000 });
-});
-
+// Apply-flow fallback: if the popup closes during a permission prompt,
+// finish the work here when the permission lands.
 chrome.permissions.onAdded.addListener(async (perms) => {
-  // Give the popup a moment to handle this if it's still alive. On
-  // successful grant the popup's first act after chrome.permissions.request
-  // resolves is to remove `pendingApply`; if it's still here after a short
-  // grace window, the popup closed during the prompt (a known Windows
-  // behavior with extension action popups under permission modals).
   await new Promise(r => setTimeout(r, 750));
-
   let pendingApply;
   try {
     ({ pendingApply } = await chrome.storage.session.get('pendingApply'));
   } catch {
     return;
   }
-  if (!pendingApply || !pendingApply.permissionPattern) return;
-  if (!perms.origins?.includes(pendingApply.permissionPattern)) return;
+  if (!pendingApply) return;
+  // Match either a host pattern grant (for http(s) bookmarks) or a
+  // permission grant (for page-inject bookmarklets, which need
+  // webNavigation + <all_urls>). The popup stashes whatever set of
+  // grants it was waiting on.
+  const hostOk = !pendingApply.permissionPattern ||
+    perms.origins?.includes(pendingApply.permissionPattern);
+  const apiOk = !pendingApply.permissionNames ||
+    pendingApply.permissionNames.every(p => perms.permissions?.includes(p));
+  if (!hostOk && !apiOk) return;
 
-  // Claim the work so a second onAdded for the same grant (e.g., from a
-  // browser-state replay) can't double-fire the completion.
   await chrome.storage.session.remove('pendingApply');
   try {
     await completePendingApply(pendingApply);
