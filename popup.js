@@ -12,6 +12,14 @@ import {
   webhookDataIconUrl,
   launcherWebhookUrl,
   launcherOriginalUrl,
+  buildPageInjectJs,
+  launcherPageInjectCode,
+  buildBookmarkletDataUrl,
+  isBookmarkletDataUrl,
+  bookmarkletDataUrlMode,
+  bookmarkletDataUrlSource,
+  bookmarkletDataUrlIconUrl,
+  recursivelyDecode,
   healOrphanedLaunchers
 } from './lib/launcher.js';
 import {
@@ -60,6 +68,8 @@ const Elements = {
   dropZone: document.getElementById('drop-zone'),
   webhookRow: document.getElementById('webhook-row'),
   webhookToggle: document.getElementById('webhook-toggle'),
+  pageInjectRow: document.getElementById('page-inject-row'),
+  pageInjectToggle: document.getElementById('page-inject-toggle'),
   applyHint: document.getElementById('apply-hint')
 };
 
@@ -167,9 +177,12 @@ async function renderBookmarks() {
     } else if (mapping && mapping.customIcon) {
       iconUrl = mapping.customIcon;
     } else {
-      // For data: URL webhooks the icon is embedded in the URL itself, so we
-      // can recover it even without a storage mapping (e.g. after a wipe).
-      iconUrl = webhookDataIconUrl(item.url) || originalFaviconUrl(item.url);
+      // For data: URL webhooks / bookmarklets the icon is embedded in the
+      // URL itself, so we can recover it even without a storage mapping
+      // (e.g. after a wipe).
+      iconUrl = webhookDataIconUrl(item.url) ||
+                bookmarkletDataUrlIconUrl(item.url) ||
+                originalFaviconUrl(item.url);
     }
 
     el.innerHTML = `
@@ -240,6 +253,7 @@ function setupEventListeners() {
   Elements.confirmBtn.onclick = applyCustomization;
   Elements.btnRestore.onclick = restoreOriginal;
   Elements.webhookToggle.onchange = syncApplyHint;
+  Elements.pageInjectToggle.onchange = syncApplyHint;
 
   const backdrop = document.querySelector('.modal-backdrop');
   if (backdrop) backdrop.onclick = closePicker;
@@ -314,18 +328,44 @@ const APPLY_HINT_WEBHOOK =
   'On Apply, the webhook will be triggered once in a small window so Chrome can cache the new favicon. ' +
   'Future bookmark clicks fire it normally — no page opens then. Unticking and re-applying will revert ' +
   'to the plain URL.';
+const APPLY_HINT_PAGE_INJECT =
+  'On Apply, the extension will ask Chrome for permission to access all sites — needed so your ' +
+  'bookmarklet can run on whatever page you click it from. After clicking the bookmark the tab will ' +
+  'briefly navigate away and back; on most pages Chrome restores form values and JS state from cache, ' +
+  'but pages with an unsaved-changes warning (e.g. rich editors) will reload — keep those as raw ' +
+  'javascript: URLs (no custom icon) if that matters.';
+const APPLY_HINT_LAUNCHER_SANDBOX =
+  'On Apply, a small tab opens briefly in the background to cache the new favicon. Your bookmarklet ' +
+  'will run inside that tab’s sandbox iframe when you click it — fine for fire-and-forget JS that ' +
+  'doesn’t read or modify the page. For bookmarklets that touch the current page (add buttons, ' +
+  'edit content, etc.), tick "Run on the current page" above.';
 
 function syncApplyHint() {
   const bm = State.selectedBookmark;
   if (!bm) { Elements.applyHint.classList.add('hidden'); return; }
   const webhookChecked = Elements.webhookToggle.checked &&
     !Elements.webhookRow.classList.contains('hidden');
+  const pageInjectChecked = Elements.pageInjectToggle.checked &&
+    !Elements.pageInjectRow.classList.contains('hidden');
+  const pageInjectVisible = !Elements.pageInjectRow.classList.contains('hidden');
   const isJsBookmarklet = bm.url.startsWith('javascript:');
   const isHttp = /^https?:/.test(bm.url);
   const isLauncher = isLauncherUrl(bm.url);
 
   if (webhookChecked) {
     Elements.applyHint.textContent = APPLY_HINT_WEBHOOK;
+    Elements.applyHint.classList.remove('hidden');
+    return;
+  }
+  if (pageInjectChecked) {
+    Elements.applyHint.textContent = APPLY_HINT_PAGE_INJECT;
+    Elements.applyHint.classList.remove('hidden');
+    return;
+  }
+  if (pageInjectVisible) {
+    // Page-inject row visible but unchecked → sandbox-mode hint that
+    // explains the trade-off so the user knows when to enable it.
+    Elements.applyHint.textContent = APPLY_HINT_LAUNCHER_SANDBOX;
     Elements.applyHint.classList.remove('hidden');
     return;
   }
@@ -347,6 +387,25 @@ function openPicker(bm) {
   const webhookUrl = webhookDataTargetUrl(bm.url) ||
                      (isLauncherUrl(bm.url) ? launcherWebhookUrl(bm.url) : null);
   const isHttp = !webhookUrl && /^https?:/.test(bm.url);
+  const isJsBookmarklet = bm.url.startsWith('javascript:');
+  // A non-webhook launcher is a legacy chrome-extension://launcher.html
+  // bookmark from an older build; re-applying migrates it to the data: URL
+  // format. The data: URL form is the current canonical bookmarklet bookmark.
+  const isPlainLauncher = !webhookUrl && isLauncherUrl(bm.url);
+  const isBookmarkletData = isBookmarkletDataUrl(bm.url);
+  const showPageInjectToggle = isJsBookmarklet || isPlainLauncher || isBookmarkletData;
+
+  // Pre-check state for the page-inject toggle:
+  let pageInjectDefault = false;
+  if (isJsBookmarklet) {
+    // Fresh conversion — most bookmarklets need page DOM access, so opt in
+    // by default; the user can untick to use sandbox mode (no permission ask).
+    pageInjectDefault = true;
+  } else if (isBookmarkletData) {
+    pageInjectDefault = bookmarkletDataUrlMode(bm.url) === 'page-inject';
+  } else if (isPlainLauncher) {
+    pageInjectDefault = launcherPageInjectCode(bm.url) !== null;
+  }
 
   Elements.targetTitle.textContent = bm.title || 'Untitled';
 
@@ -358,10 +417,18 @@ function openPicker(bm) {
     Elements.webhookToggle.checked = false;
   }
 
+  if (showPageInjectToggle) {
+    Elements.pageInjectRow.classList.remove('hidden');
+    Elements.pageInjectToggle.checked = pageInjectDefault;
+  } else {
+    Elements.pageInjectRow.classList.add('hidden');
+    Elements.pageInjectToggle.checked = false;
+  }
+
   syncApplyHint();
 
   const mapping = State.customizedMappings[bm.url];
-  const embeddedIcon = webhookDataIconUrl(bm.url);
+  const embeddedIcon = webhookDataIconUrl(bm.url) || bookmarkletDataUrlIconUrl(bm.url);
   if (mapping && mapping.customIcon) {
     Elements.targetCurrentIcon.src = mapping.customIcon;
     Elements.btnRestore.classList.remove('hidden');
@@ -405,12 +472,27 @@ function closePicker() {
  *   the URL in a keepalive fetch() so the request fires silently and
  *   survives the launcher tab closing. Unticking restores the original URL.
  *
- * - javascript: URLs (bookmarklets): there's no page to inject into, so we
- *   rewrite the bookmark to chrome-extension://<id>/launcher.html?js=<encoded>
- *   — a real extension page that can carry a favicon and runs the original
- *   code in a sandboxed iframe. The original JS survives verbatim inside
- *   the ?js= param; if the extension is removed, decodeURIComponent on it
- *   recovers the bookmarklet.
+ * - javascript: URLs (bookmarklets): there's no DOM-bearing "current page"
+ *   to attach a favicon to, so we rewrite the bookmark to
+ *   chrome-extension://<id>/launcher.html?js=<encoded> — a real extension
+ *   page that can carry a favicon. From there, two sub-modes (gated by the
+ *   "Run on the current page" toggle in the picker):
+ *
+ *     a) Page-inject (toggle ON, the common case): the source is prefixed
+ *        with /*BIC-PAGE-INJECT*​/ before encoding. When the user clicks
+ *        the bookmark, the launcher hands the source off to background.js,
+ *        which chrome.scripting.executeScript's it into the user's prior
+ *        page in MAIN world — same execution surface as a native
+ *        javascript: URL. Requires <all_urls> host permission (one prompt).
+ *
+ *     b) Sandbox (toggle OFF): the source runs in launcher.html's sandbox
+ *        iframe. No DOM access to the user's page — usable only for
+ *        fire-and-forget JS (open a URL, ping a server) that doesn't read
+ *        or modify the page. No extra permission.
+ *
+ *   In both sub-modes the original JS is preserved verbatim inside the
+ *   ?js= param; decoding it (and stripping the marker if present)
+ *   recovers the bookmarklet even after the extension is removed.
  */
 async function applyCustomization() {
   if (!State.selectedIcon || !State.selectedBookmark) {
@@ -427,6 +509,8 @@ async function applyCustomization() {
     (alreadyLauncher ? launcherWebhookUrl(bm.url) : null);
   const wantsWebhook = Elements.webhookToggle.checked &&
     !Elements.webhookRow.classList.contains('hidden');
+  const wantsPageInject = Elements.pageInjectToggle.checked &&
+    !Elements.pageInjectRow.classList.contains('hidden');
 
   // Resolve the underlying https URL for webhook flows (covers both fresh
   // http(s) bookmarks and already-converted webhook bookmarks).
@@ -440,8 +524,28 @@ async function applyCustomization() {
   let isWebhookApply = false;      // webhook data: URL path — priming fires the webhook
 
   if (isJsBookmarklet) {
-    storageKey = buildLauncherUrl(bm.url.slice('javascript:'.length));
+    // Fresh javascript: bookmark → data:text/html with inlined favicon.
+    // The launcher URL approach (chrome-extension://launcher.html) can't
+    // carry a custom favicon — Chrome substitutes the manifest icon on
+    // any chrome-extension:// bookmark, ignoring the page's <link rel="icon">.
+    // data: URLs let us inline the favicon, which Chrome does honor.
+    const rawJs = recursivelyDecode(bm.url.slice('javascript:'.length));
+    storageKey = buildBookmarkletDataUrl(rawJs, State.selectedIcon, bm.title || '', { pageInject: wantsPageInject });
     newBookmarkUrl = storageKey;
+    if (wantsPageInject) hostPermissionUrl = '<all_urls>';
+  } else if (isBookmarkletDataUrl(bm.url)) {
+    // Existing data: URL bookmarklet — rebuild with the new icon and/or
+    // mode. Each rebuild produces a fresh URL (the icon is inlined), so
+    // we migrate the mapping off the old key.
+    const rawJs = bookmarkletDataUrlSource(bm.url);
+    if (rawJs === null) { showToast('Could not read bookmarklet source', true); return; }
+    const newStorageKey = buildBookmarkletDataUrl(rawJs, State.selectedIcon, bm.title || '', { pageInject: wantsPageInject });
+    if (newStorageKey !== bm.url) {
+      storageKey = newStorageKey;
+      newBookmarkUrl = newStorageKey;
+      oldMappingKey = bm.url;
+    }
+    if (wantsPageInject) hostPermissionUrl = '<all_urls>';
   } else if (wantsWebhook && baseHttpUrl) {
     // http(s) → webhook data: bookmark (or updating the icon on an existing one).
     // Chrome still needs to load the data: URL once so its favicon cache picks
@@ -469,7 +573,26 @@ async function applyCustomization() {
     storageKey = existingWebhookUrl;
     hostPermissionUrl = existingWebhookUrl;
     oldMappingKey = bm.url;
-  } else if (!alreadyLauncher) {
+  } else if (alreadyLauncher) {
+    // Existing non-webhook chrome-extension://launcher.html bookmark from
+    // an older build. Always migrate to the data:text/html format on
+    // re-apply so the favicon actually shows (Chrome substitutes the
+    // manifest icon on chrome-extension:// URLs).
+    const existingPageInjectCode = launcherPageInjectCode(bm.url);
+    let rawJs;
+    if (existingPageInjectCode !== null) {
+      rawJs = existingPageInjectCode;
+    } else {
+      try {
+        rawJs = recursivelyDecode(new URL(bm.url).searchParams.get('js') || '');
+      } catch { rawJs = ''; }
+    }
+    const newStorageKey = buildBookmarkletDataUrl(rawJs, State.selectedIcon, bm.title || '', { pageInject: wantsPageInject });
+    storageKey = newStorageKey;
+    newBookmarkUrl = newStorageKey;
+    oldMappingKey = bm.url;
+    if (wantsPageInject) hostPermissionUrl = '<all_urls>';
+  } else {
     const reason = unsupportedReason(bm.url);
     if (reason) { showToast(reason, true); return; }
     hostPermissionUrl = bm.url;
@@ -485,6 +608,14 @@ async function applyCustomization() {
   //    swap sticks in Chrome's cache reliably
   const isLauncher = storageKey.startsWith('chrome-extension://');
 
+  // Resolve the match pattern for the permission request. '<all_urls>'
+  // bypasses per-host normalization — it's the literal match pattern Chrome
+  // expects when a feature needs to inject into arbitrary pages (page-inject
+  // launcher mode).
+  let permissionPattern = null;
+  if (hostPermissionUrl === '<all_urls>') permissionPattern = '<all_urls>';
+  else if (hostPermissionUrl) permissionPattern = originMatchPattern(hostPermissionUrl);
+
   const pendingApply = {
     bookmarkId: bm.id,
     newBookmarkUrl,
@@ -494,7 +625,7 @@ async function applyCustomization() {
     title: bm.title || 'Untitled',
     originToMaybeRevoke,
     useWindow: !isLauncher,
-    permissionPattern: hostPermissionUrl ? originMatchPattern(hostPermissionUrl) : null
+    permissionPattern
   };
 
   try {
@@ -508,11 +639,20 @@ async function applyCustomization() {
       // so the user has to apply twice for the icon to take effect.
       await chrome.storage.session.set({ pendingApply });
       // Must be inside the click handler's user-gesture window.
-      const granted = await chrome.permissions.request({ origins: [pendingApply.permissionPattern] });
+      const granted = await chrome.permissions.request({ origins: [permissionPattern] });
       if (!granted) {
         await chrome.storage.session.remove('pendingApply');
-        const host = new URL(hostPermissionUrl).hostname;
-        showToast(`Permission to modify ${host} is required`, true);
+        if (hostPermissionUrl === '<all_urls>') {
+          showToast(
+            'Permission to access all sites is required to run this bookmarklet on the page. ' +
+            'Untick "Run on the current page" to use sandbox mode (no extra permission), or ' +
+            'apply again and accept the prompt.',
+            true
+          );
+        } else {
+          const host = new URL(hostPermissionUrl).hostname;
+          showToast(`Permission to modify ${host} is required`, true);
+        }
         Elements.confirmBtn.textContent = 'Apply Icon';
         Elements.confirmBtn.disabled = false;
         return;
@@ -556,10 +696,14 @@ async function restoreOriginal() {
     // showing our custom icon until the user manually visits the page.
     let primeUrl = null;
     const dataWebhookTarget = webhookDataTargetUrl(bm.url);
+    const dataBookmarkletSource = bookmarkletDataUrlSource(bm.url);
     if (dataWebhookTarget) {
       // data: URL webhook → revert to the original https target.
       await chrome.bookmarks.update(bm.id, { url: dataWebhookTarget });
       primeUrl = dataWebhookTarget;
+    } else if (dataBookmarkletSource !== null) {
+      // data: URL bookmarklet → revert to the original javascript: URL.
+      await chrome.bookmarks.update(bm.id, { url: `javascript:${dataBookmarkletSource}` });
     } else if (isLauncherUrl(bm.url)) {
       // Restore the bookmark to its pre-customization form: webhook launchers
       // go back to the original https URL; regular bookmarklet launchers go

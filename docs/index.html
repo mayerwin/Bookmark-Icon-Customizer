@@ -19,6 +19,7 @@
       </a>
       <nav class="site-nav">
         <a href="#features">Features</a>
+        <a href="#bookmarklets">Bookmarklets</a>
         <a href="#gallery">Gallery</a>
         <a href="privacy.html">Privacy</a>
         <a class="gh-link" href="https://github.com/mayerwin/Bookmark-Icon-Customizer" aria-label="View on GitHub">
@@ -68,7 +69,7 @@
         </div>
         <div class="feature">
           <h3>Bookmarklets, with icons</h3>
-          <p>Turn <code>javascript:</code> bookmarks into proper icon-carrying launchers. Original source is always recoverable.</p>
+          <p>Turn <code>javascript:</code> bookmarks into icon-carrying launchers — choose <strong>page-inject mode</strong> for bookmarklets that modify the page you click them from, or <strong>sandbox mode</strong> for fire-and-forget ones. Original source is always recoverable.</p>
         </div>
         <div class="feature">
           <h3>Webhook bookmarks</h3>
@@ -87,11 +88,29 @@
       <div class="how-it-works">
         <ol>
           <li><strong>Plain URLs</strong> — the target is opened once in a small focused-off popup window so Chrome caches your chosen favicon for that URL.</li>
-          <li><strong>Bookmarklets</strong> — rewritten to an extension launcher page that carries the favicon; the original JS is preserved verbatim in the URL and self-heals on reinstall.</li>
+          <li><strong>Bookmarklets</strong> — rewritten to an extension launcher page that carries the favicon; the original JS is preserved verbatim in the URL and self-heals on reinstall. Choose between <em>page-inject</em> (default — runs the bookmarklet on whatever page you click it from, just like a native <code>javascript:</code> URL) and <em>sandbox</em> (the JS runs in an isolated iframe, no page access).</li>
           <li><strong>Webhooks</strong> — rewritten to a <code>data:text/html</code> URL with the favicon inlined. Click the bookmark and it fires the request silently, without opening a tab.</li>
           <li><strong>Reversible everywhere</strong> — untick the customization and the bookmark is restored to its original form.</li>
         </ol>
       </div>
+    </section>
+
+    <section id="bookmarklets">
+      <h2>About bookmarklets</h2>
+      <p class="section-sub">A native <code>javascript:</code> bookmarklet runs <em>inside the page you click it from</em> — that's how it can add buttons, edit content, read the selection, fill forms. The catch is that Chrome doesn't show favicons for <code>javascript:</code> URLs, so to attach a custom icon the bookmark has to be rewritten to a real URL.</p>
+      <p class="section-sub">The picker has a <strong>"Run on the current page"</strong> checkbox to choose how that's handled:</p>
+      <div class="how-it-works">
+        <ol>
+          <li><strong>Checked — page-inject mode (default).</strong> Clicking the bookmark navigates the tab to a <code>data:text/html</code> URL the extension built (carrying the custom favicon inlined in its HTML). That page immediately calls <code>history.back()</code> to send the user back to where they came from, and the extension's background worker runs the bookmarklet code on the returned page in its main-world JS context. End result: the bookmarklet behaves the way a native <code>javascript:</code> URL would. Requires the optional <code>&lt;all_urls&gt;</code> host permission, which Chrome asks for at runtime the first time you use this mode — never at install time.</li>
+          <li><strong>Unchecked — sandbox mode.</strong> The bookmarklet runs inside the <code>data:</code> URL's own document, isolated from your previous page. Use for fire-and-forget JS that doesn't need to read or modify the page (open a URL, ping a server, etc.). No extra permission requested.</li>
+        </ol>
+      </div>
+      <p class="section-sub">You can switch modes at any time by reopening the picker on the converted bookmark and toggling the checkbox.</p>
+
+      <h3>Limitation: page reload on BFCache-ineligible pages</h3>
+      <p class="section-sub">The round-trip (forward to the data: URL, back to the original page) takes Chrome roughly 100 ms. <strong>Whether you see a visible reload depends on Chrome's back-forward cache (BFCache).</strong> On most modern pages (news, Wikipedia, GitHub, Reddit, most apps), BFCache restores the previous page from memory: the click is a brief flash followed by a state-preserving return — same DOM, same JavaScript variables, same scroll position, same form values. <strong>On every click, not just the first.</strong></p>
+      <p class="section-sub">For pages that <strong>opt out of BFCache</strong>, every click does a fresh fetch of the previous URL and any unsaved data is lost. Common opt-outs include pages with a <code>beforeunload</code> handler (rich editors, online IDEs, dashboards that warn before navigation), pages with <code>Cache-Control: no-store</code>, some banking and SSO pages, and pages with certain service-worker setups.</p>
+      <p class="section-sub">The most painful subtlety: many editors only enable their <code>beforeunload</code> handler <em>once you have unsaved changes</em>, which is exactly when you'd most regret losing them. If your bookmarklet targets that kind of page, prefer not converting it — keep it as a raw <code>javascript:</code> URL (the picker's <em>Restore Original</em> button reverts a converted bookmark). Sandbox mode has the same reload behavior as page-inject mode because both rewrite the bookmark to a <code>data:</code> URL; the only no-reload alternative is to leave the bookmark as <code>javascript:</code> and accept the default Chrome favicon.</p>
     </section>
 
     <section id="gallery">

@@ -1,6 +1,6 @@
 # Privacy Policy — Bookmark Icon Customizer
 
-**Last updated:** 2026-04-18
+**Last updated:** 2026-05-22
 
 Bookmark Icon Customizer is designed with privacy as a first principle. This policy explains exactly what the extension does — and does not — do with your data.
 
@@ -31,7 +31,12 @@ No other network requests are made.
 - `bookmarks` — read and update your bookmarks so we can attach custom icons.
 - `storage` — persist your icon mappings locally.
 - `favicon` — read the default favicon of a bookmark so we can show the "restore original" preview.
-- `scripting` + optional `<all_urls>` host access — only requested if you opt into priming (opening a bookmark's target once so Chrome caches the favicon).
+- `scripting` — used to swap a bookmark's `<link rel="icon">` on the target page so Chrome caches your custom favicon, and (only in page-inject bookmarklet mode) to run a bookmarklet's source in the tab you clicked it from.
+- **Optional `<all_urls>` host access** — not requested at install time. Chrome will ask for it at runtime in exactly two cases:
+  1. The first time you apply a custom icon to a plain http(s) bookmark, scoped to that bookmark's origin only (e.g. `https://example.com/*`).
+  2. The first time you tick **"Run on the current page"** for a `javascript:` bookmarklet. This mode reproduces a native bookmarklet's behavior — running the JS on whatever page you click it from — which requires the ability to inject into arbitrary sites. The extension only does so when you click a bookmark you've explicitly opted into this mode; nothing runs in the background, nothing is read, no data leaves your browser.
+
+If you'd rather not grant `<all_urls>`, you can untick "Run on the current page" and use sandbox mode for bookmarklets — no permission needed, with the trade-off that the bookmarklet runs in an isolated iframe and can't read or modify the page you click it from.
 
 ## Uninstalling
 

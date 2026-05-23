@@ -35,6 +35,13 @@ foreach ($i in $items) {
   if (-not (Test-Path -LiteralPath $i)) { throw "Missing required file: $i" }
 }
 
+# Safety net: never ship a debug build. lib/debug.js gates all diagnostic
+# console.log output behind BIC_DEBUG; if it's still true here, somebody
+# (often me) forgot to flip it back after a debugging session.
+if (Get-Content 'lib/debug.js' -Raw | Select-String -Pattern 'BIC_DEBUG\s*=\s*true' -Quiet) {
+  throw "lib/debug.js has BIC_DEBUG=true. Flip it to false before packaging for release."
+}
+
 if (-not (Test-Path 'dist')) { New-Item -ItemType Directory -Path 'dist' | Out-Null }
 $output = Join-Path 'dist' "bookmark-icon-customizer-v$version.zip"
 if (Test-Path -LiteralPath $output) { Remove-Item -LiteralPath $output -Force }
