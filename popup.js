@@ -70,7 +70,8 @@ const Elements = {
   webhookToggle: document.getElementById('webhook-toggle'),
   pageInjectRow: document.getElementById('page-inject-row'),
   pageInjectToggle: document.getElementById('page-inject-toggle'),
-  applyHint: document.getElementById('apply-hint')
+  applyHint: document.getElementById('apply-hint'),
+  appVersion: document.getElementById('app-version')
 };
 
 const originalFaviconUrl = pageUrl =>
@@ -113,6 +114,10 @@ function showToast(msg, isError = false) {
 
 // ── Init ───────────────────────────────────────────────────────────────
 async function init() {
+  // Stamp the real extension version into the footer (single source of truth:
+  // manifest.json) so it can never drift from the shipped build. Set before
+  // the try block so a later init failure still shows the correct version.
+  if (Elements.appVersion) Elements.appVersion.textContent = 'v' + chrome.runtime.getManifest().version;
   try {
     // Self-heal first: if the extension was uninstalled + reinstalled, any
     // launcher URLs from the old install point at a dead extension ID and
