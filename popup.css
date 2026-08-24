@@ -439,8 +439,10 @@ main {
 .apply-hint.hidden { display: none; }
 
 /* Webhook toggle row */
+/* Deliberately NOT position:relative — the help tooltip inside this row is
+   anchored to .modal-content instead, so it can never grow past the modal's
+   `overflow: hidden` edge and get clipped. See .webhook-tooltip. */
 .webhook-row {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -513,11 +515,21 @@ main {
   outline: none;
 }
 
+/* Anchored to .modal-content (the nearest positioned ancestor now that
+   .webhook-row is static) rather than to the row itself. Pinned inside the
+   modal on all four sides and capped to its height, so however long the help
+   text gets it stays fully on screen instead of overflowing the modal's top
+   edge and being clipped by its `overflow: hidden`. overflow-y is the
+   belt-and-braces: if the text ever outgrows even the full modal height it
+   scrolls instead of cropping. */
 .webhook-tooltip {
   position: absolute;
-  bottom: calc(100% + 8px);
-  left: 10px;
-  right: 10px;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 10px 12px;
   background: rgba(15, 23, 42, 0.98);
   border: 1px solid var(--border-color);
@@ -547,6 +559,10 @@ main {
 .webhook-help:focus .webhook-tooltip {
   opacity: 1;
   transform: translateY(0);
+  /* Scrollable in the overflow case. The tooltip is a DOM child of
+     .webhook-help, so hovering it still satisfies :hover and it stays open
+     while the pointer is inside it. */
+  pointer-events: auto;
 }
 
 /* Tabs */
