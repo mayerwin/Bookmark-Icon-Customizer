@@ -80,8 +80,44 @@ function injectIntoTab(tabId, source) {
     target: { tabId },
     world: 'MAIN',
     func: (src) => {
+      // Pages that enforce `require-trusted-types-for 'script'` (youtube.com
+      // and most Google properties) make HTMLScriptElement.textContent a
+      // Trusted Types sink: assigning a plain string throws before the
+      // <script> is ever appended, so the bookmarklet silently never runs and
+      // the user just sees the tab bounce away and back. MAIN-world injections
+      // are subject to the page's CSP — only isolated-world content scripts
+      // are exempt — so we mint a pass-through policy and wrap the source.
+      //
+      // No new permission: Trusted Types is a plain web-platform API. Pages
+      // that don't enforce it are unaffected (the policy is an identity
+      // function, and a TrustedScript assigns to textContent exactly like the
+      // string did). The policy is cached on the page so repeated clicks —
+      // including bfcache restores, which bring the same document back — don't
+      // re-mint it, which would throw under a `trusted-types` directive that
+      // doesn't allow duplicates.
+      let payload = src;
+      try {
+        const tt = window.trustedTypes;
+        if (tt && tt.createPolicy) {
+          let policy = window.__BIC_TT_POLICY__;
+          if (!policy) {
+            try {
+              policy = tt.createPolicy('bic-bookmarklet', { createScript: (s) => s });
+            } catch (e) {
+              // A `trusted-types` directive that doesn't allowlist our name
+              // rejects the policy; the page's own default policy, if it has
+              // one, is the next best thing.
+              policy = tt.defaultPolicy || null;
+            }
+            if (policy) window.__BIC_TT_POLICY__ = policy;
+          }
+          if (policy) payload = policy.createScript(src);
+        }
+      } catch (e) {
+        payload = src; // fall through and let the raw assignment try its luck
+      }
       const s = document.createElement('script');
-      s.textContent = src;
+      s.textContent = payload;
       (document.head || document.documentElement).appendChild(s);
       s.remove();
     },
